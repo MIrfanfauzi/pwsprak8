@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      background-color: #f8f9fa;
+      color: #333;
+      line-height: 1.6;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 40px auto;
+      background: white;
+      padding: 32px;
+      border-radius: 10px;
+      box-shadow: 0 4x 12px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 24px;
+      color: #2d3748;
+      text-align: center;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    th {
+      background-color: #f8fafc;
+      color: #4a5568;
+      font-weight: 600;
+    }
+
+    tr:hover {
+      background-color: #fafafa;
+    }
+
+    /* Kontainer scroll untuk API key */
+    .api-key-container {
+      max-width: 220px;
+      overflow-x: auto;
+      white-space: nowrap;
+      padding: 4px 0;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .api-key {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 13px;
+      color: #4a5568;
+      display: inline-block;
+      min-width: 220px; 
+    }
+
+    .status-aktif {
+      color: #2f855a;
+      font-weight: 600;
+    }
+
+    .status-kadaluarsa {
+      color: #c53030;
+      font-weight: 600;
+    }
+
+    .delete-btn {
+      background: #e53e3e;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .delete-btn:hover {
+      background: #c53030;
+    }
+
+    .actions {
+      text-align: center;
+    }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 24px;
+      color: #3182ce;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+
+      table {
+        font-size: 14px;
+      }
+
+      th, td {
+        padding: 8px 10px;
+      }
+
+      .api-key-container {
+        max-width: 160px;
+      }
+
+      .api-key {
+        font-size: 12px;
+        min-width: 160px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Dashboard Admin: Daftar User & API Key</h1>
+
+    <table id="userTable">
+      <thead>
+        <tr>
+          <th>ID User</th>
+          <th>Nama Depan</th>
+          <th>Nama Belakang</th>
+          <th>Email</th>
+          <th>API Key</th>
+          <th>Status Key</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+
+    <a href="/" class="back-link">← Kembali ke Beranda</a>
+  </div>
+
+  <script>
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/users');
+        if (!res.ok) {
+          alert('Gagal memuat data. Anda mungkin belum login.');
+          window.location.href = '/login';
+          return;
+        }
+        const users = await res.json();
+        const tbody = document.querySelector('#userTable tbody');
+        tbody.innerHTML = '';
+
+        users.forEach(user => {
+          const row = document.createElement('tr');
+
+          const statusClass = user.status_key === 'Aktif' 
+            ? 'status-aktif' 
+            : 'status-kadaluarsa';
+
+          const apiKeyDisplay = user.api_key || '-';
+
+          row.innerHTML = `
+            <td>${user.user_id}</td>
+            <td>${user.first_name}</td>
+            <td>${user.last_name}</td>
+            <td>${user.email}</td>
+            <td>
+              <div class="api-key-container">
+                <code class="api-key" title="${apiKeyDisplay}">${apiKeyDisplay}</code>
+              </div>
+            </td>
+            <td class="${statusClass}">${user.status_key}</td>
+            <td class="actions">
+              <button class="delete-btn" data-user-id="${user.user_id}">Hapus</button>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const userId = e.target.dataset.userId;
+            if (!confirm(`Yakin ingin menghapus user ID ${userId}? Ini juga akan menghapus API key-nya.`)) {
+              return;
+            }
+
+            try {
+              const res = await fetch(`/api/delete-user/${userId}`, {
+                method: 'DELETE'
+              });
+
+              if (res.ok) {
+                alert('User berhasil dihapus.');
+                loadUsers(); 
+              } else {
+                const data = await res.json();
+                alert(data.message || 'Gagal menghapus user.');
+              }
+            } catch (err) {
+              console.error(err);
+              alert('Terjadi kesalahan saat menghapus.');
+            }
+          });
+        });
+
+      } catch (err) {
+        console.error('Load users error:', err);
+        alert('Gagal memuat data: ' + err.message);
+      }
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>
